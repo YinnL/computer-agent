@@ -1,28 +1,20 @@
-# 电脑操作 Agent 配置文件 - 针对 Qwen3.5 优化
-
-# 阿里云 DashScope API 配置
+action:
+  click_interval: 0.3
+  confirm_dangerous: true
+  mouse_duration: 0.5
+  type_interval: 0.1
 api:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-  api_key: "your-dashscope-api-key-here"
-  model: "qwen3.5-plus"
+  api_key: "your-api-key-here"
+  base_url: "https://coding.dashscope.aliyuncs.com/v1"
+  max_iterations: 20
   max_tokens: 4096
+  model: "qwen3.5-plus"
   temperature: 0.7
-
-# 屏幕配置
+logging:
+  console: true
+  file: "agent.log"
+  level: "INFO"
 screen:
+  screenshot_interval: 1.0
   screenshot_quality: 90
   virtual_resolution: 1000
-  screenshot_interval: 1.0
-
-# 操作配置
-action:
-  mouse_duration: 0.5
-  click_interval: 0.3
-  type_interval: 0.1
-  confirm_dangerous: true
-
-# 日志配置
-logging:
-  level: "INFO"
-  file: "agent.log"
-  console: true

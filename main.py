@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-电脑操作 Agent - 针对 Qwen3.5 优化
+电脑操作 Agent
 使用 mss 截图、pyautogui 操作、OpenAI SDK 进行 AI 决策
-支持阿里云 DashScope API
 """
 
 import os
@@ -104,6 +103,8 @@ class ScreenCapture:
         jpeg_data = img_bytes.getvalue()
         
         self.logger.info(f"截图完成：分辨率={actual_resolution}")
+        self.logger.info(f"pyautogui 当前鼠标位置：{pyautogui.position()}")
+        
         return jpeg_data, actual_resolution
     
     def get_screen_size(self) -> Tuple[int, int]:
@@ -124,6 +125,13 @@ class CoordinateMapper:
         actual_x = int(ai_x * scale_x)
         actual_y = int(ai_y * scale_y)
         return actual_x, actual_y
+    
+    def map_coordinates_reverse(self, actual_x: int, actual_y: int, actual_width: int, actual_height: int) -> Tuple[float, float]:
+        scale_x = actual_width / self.virtual_resolution
+        scale_y = actual_height / self.virtual_resolution
+        ai_x = actual_x / scale_x
+        ai_y = actual_y / scale_y
+        return ai_x, ai_y
 
 
 class ActionExecutor:
@@ -169,7 +177,8 @@ class ActionExecutor:
             return action['参数']
         elif 'params' in action:
             return action['params']
-        return action
+        else:
+            return action
     
     def _get_coordinates(self, action: Dict, screen_size: Tuple[int, int]) -> Tuple[int, int]:
         params = self._get_params(action)
@@ -192,6 +201,7 @@ class ActionExecutor:
         ai_y = params.get('y', 500)
         button = params.get('button', 'left')
         x, y = self._get_coordinates(action, screen_size)
+        self.logger.info(f"AI 坐标 ({ai_x}, {ai_y}) -> 实际坐标 ({x}, {y})")
         pyautogui.click(x, y, button=button)
         return f"已{button}键点击 ({x}, {y})"
     
@@ -209,6 +219,7 @@ class ActionExecutor:
         params = self._get_params(action)
         text = params.get('text', '')
         if not text:
+            self.logger.warning(f"type 操作未指定文本，params: {params}")
             return "错误：未指定要输入的文本"
         clear_first = params.get('clear_first', False)
         if clear_first:
@@ -222,25 +233,43 @@ class ActionExecutor:
             time.sleep(0.1)
             pyautogui.hotkey('command', 'v')
             time.sleep(0.2)
+            self.logger.info("文本输入成功（使用剪贴板粘贴）")
             return f"已输入文本：{text[:50]}{'...' if len(text) > 50 else ''}"
         except Exception as e:
+            self.logger.warning(f"剪贴板方式失败：{e}，回退到模拟键盘")
             pyautogui.write(text, interval=self.config.type_interval)
             return f"已输入文本（模拟键盘）: {text[:50]}{'...' if len(text) > 50 else ''}"
     
     def _press_key(self, action: Dict) -> str:
         params = self._get_params(action)
         key = params.get('key', '')
-        pyautogui.press(key)
+        presses = params.get('presses', 1)
+        interval = params.get('interval', 0.1)
+        pyautogui.press(key, presses=presses, interval=interval)
         return f"已按下按键：{key}"
     
     def _hotkey(self, action: Dict) -> str:
         params = self._get_params(action)
         keys = params.get('keys', [])
         if not keys:
+            self.logger.warning(f"hotkey 操作未指定按键，params: {params}")
             return "错误：未指定组合键"
         key_map = {
-            'ctrl': 'command', 'control': 'command', 'cmd': 'command',
-            'alt': 'option', 'option': 'option', 'win': 'command'
+            'ctrl': 'command' if sys.platform == 'darwin' else 'ctrl',
+            'control': 'command' if sys.platform == 'darwin' else 'ctrl',
+            'cmd': 'command', 'command': 'command',
+            'alt': 'option', 'option': 'option', 'win': 'command',
+            'enter': 'enter', 'return': 'enter', 'tab': 'tab',
+            'space': 'space', 'backspace': 'backspace', 'delete': 'delete',
+            'escape': 'esc', 'esc': 'esc',
+            'up': 'up', 'down': 'down', 'left': 'left', 'right': 'right',
+            'a': 'a', 'b': 'b', 'c': 'c', 'd': 'd', 'e': 'e',
+            'f': 'f', 'g': 'g', 'h': 'h', 'i': 'i', 'j': 'j',
+            'k': 'k', 'l': 'l', 'm': 'm', 'n': 'n', 'o': 'o',
+            'p': 'p', 'q': 'q', 'r': 'r', 's': 's', 't': 't',
+            'u': 'u', 'v': 'v', 'w': 'w', 'x': 'x', 'y': 'y', 'z': 'z',
+            '0': '0', '1': '1', '2': '2', '3': '3', '4': '4',
+            '5': '5', '6': '6', '7': '7', '8': '8', '9': '9'
         }
         mapped_keys = [key_map.get(k.lower(), k.lower()) for k in keys]
         pyautogui.hotkey(*mapped_keys)
@@ -248,7 +277,8 @@ class ActionExecutor:
     
     def _scroll(self, action: Dict, screen_size: Tuple[int, int]) -> str:
         clicks = action.get('clicks', 1)
-        pyautogui.scroll(clicks)
+        x, y = self._get_coordinates(action, screen_size) if 'x' in action else (None, None)
+        pyautogui.scroll(clicks, x=x, y=y)
         return f"已滚动 {clicks} 个单位"
     
     def _wait(self, action: Dict) -> str:
@@ -258,9 +288,8 @@ class ActionExecutor:
 
 
 class ComputerAgent:
-    """电脑操作 Agent 主类 - 针对 Qwen3.5 优化"""
+    """电脑操作 Agent 主类"""
     
-    # 系统提示词 - 针对 Qwen3.5 优化（使用简洁的 markdown 格式）
     SYSTEM_PROMPT = """你是一个电脑操作助手，通过视觉分析屏幕并执行操作任务。
 
 # 坐标系统（重要！）
@@ -271,7 +300,7 @@ class ComputerAgent:
 - x 轴：从左到右 0→1000
 - y 轴：从上到下 0→1000
 
-# 视觉定位方法
+# 视觉定位方法（重要！）
 
 ## 1. 使用相对位置估算
 - 屏幕左侧边缘：x ≈ 50-100
@@ -286,10 +315,10 @@ class ComputerAgent:
 - 屏幕垂直 3/4 位置：y ≈ 750
 - 屏幕底部边缘：y ≈ 900-950
 
-## 2. 常见 UI 元素坐标
+## 2. 常见 UI 元素的坐标特征
 - macOS 顶部菜单栏：y ≈ 30-40
 - macOS Dock 栏（底部）：y ≈ 920-980
-- 窗口标题栏：y 坐标通常在窗口顶部
+- 窗口标题栏：y 坐标通常在窗口的顶部
 - 窗口内容区域：在标题栏下方
 - 按钮：通常在窗口底部或右下角
 
@@ -341,10 +370,17 @@ class ComputerAgent:
         
     def _setup_logging(self):
         log_level = getattr(logging, self.config.config['logging']['level'])
-        logging.basicConfig(
-            level=log_level,
-            format='%(asctime)s - %(levelname)s - %(message)s'
-        )
+        log_format = '%(asctime)s - %(levelname)s - %(message)s'
+        handlers = []
+        if self.config.config['logging'].get('file'):
+            file_handler = logging.FileHandler(self.config.config['logging']['file'])
+            file_handler.setLevel(log_level)
+            handlers.append(file_handler)
+        if self.config.config['logging'].get('console', True):
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(log_level)
+            handlers.append(console_handler)
+        logging.basicConfig(level=log_level, format=log_format, handlers=handlers)
         self.logger = logging.getLogger(__name__)
         
     def _encode_image(self, image_data: bytes) -> str:

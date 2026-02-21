@@ -1,11 +1,11 @@
-# 电脑操作 Agent - Qwen3.5 优化版
+# 电脑操作 Agent
 
-一个基于 AI 视觉的电脑操作助手，使用阿里云 Qwen3.5 多模态模型进行屏幕分析和操作决策。
+一个基于 AI 视觉的电脑操作助手，能够分析屏幕内容并自主执行操作任务。
 
 ## 功能特点
 
 - 🖼️ **屏幕截图** - 使用 mss 高速截图
-- 🤖️ **AI 视觉分析** - 使用阿里云 Qwen3.5 分析屏幕内容
+- 🤖 **AI 视觉分析** - 使用阿里云 Qwen3.5 分析屏幕内容
 - 🖱️ **自动操作** - 使用 pyautogui 执行鼠标键盘操作
 - 🔄 **循环迭代** - 截图→思考→操作，直到完成任务
 - 📐 **坐标映射** - AI 使用 1000x1000 归一化坐标，自动映射到实际分辨率
@@ -32,8 +32,8 @@ pip install -r requirements.txt
 
 ```yaml
 api:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-  api_key: "your-dashscope-api-key-here"  # 替换为你的阿里云密钥
+  base_url: "https://coding.dashscope.aliyuncs.com/v1"
+  api_key: "your-api-key-here"
   model: "qwen3.5-plus"
 ```
 
@@ -65,18 +65,6 @@ computer_agent/
 │   └── index.html         # Web 界面
 └── agent.log              # 运行日志
 ```
-
-## Qwen3.5 优化说明
-
-### 提示词优化
-- 使用简洁的 markdown 格式
-- 强调纯 JSON 输出
-- 优化坐标系统说明
-
-### API 配置
-- 使用阿里云 DashScope 兼容模式
-- 支持 Qwen3.5 多模态模型
-- 优化温度和 max_tokens 参数
 
 ## 注意事项
 
