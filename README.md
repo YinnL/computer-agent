@@ -38,7 +38,7 @@ api:
 #### 方式一：命令行运行
 
 ```bash
-python main.py -t "打开微信"
+python main.py -t "打开浏览器"
 ```
 
 #### 方式二：Web 界面
