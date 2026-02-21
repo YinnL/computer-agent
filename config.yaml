@@ -1,0 +1,28 @@
+# 电脑操作 Agent 配置文件
+
+# OpenAI API 配置
+api:
+  base_url: "https://api.openai.com/v1"
+  api_key: "your-api-key-here"
+  model: "gpt-4o"
+  max_tokens: 4096
+  temperature: 0.7
+
+# 屏幕配置
+screen:
+  screenshot_quality: 90
+  virtual_resolution: 1000
+  screenshot_interval: 1.0
+
+# 操作配置
+action:
+  mouse_duration: 0.5
+  click_interval: 0.3
+  type_interval: 0.1
+  confirm_dangerous: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "agent.log"
+  console: true

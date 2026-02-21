@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电脑操作 Agent</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .task-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .task-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #ff3344;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .status.running {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status.idle {
+            background: #d4edda;
+            color: #155724;
+        }
+        .logs {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+        }
+        .log-entry {
+            color: #d4d4d4;
+            margin-bottom: 5px;
+        }
+        .log-entry.info {
+            color: #4ec9b0;
+        }
+        .log-entry.error {
+            color: #f48771;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 电脑操作 Agent</h1>
+        <p class="subtitle">AI 驱动的电脑自动化助手</p>
+        
+        <div class="status idle" id="status">准备就绪</div>
+        
+        <input type="text" class="task-input" id="taskInput" placeholder="输入任务描述，例如：打开微信">
+        
+        <div class="btn-group">
+            <button class="btn btn-primary" id="startBtn" onclick="startTask()">▶️ 开始任务</button>
+            <button class="btn btn-danger" id="stopBtn" onclick="stopTask()" disabled>⏹️ 停止</button>
+        </div>
+        
+        <div class="logs" id="logs">
+            <div class="log-entry">等待任务...</div>
+        </div>
+        
+        <div class="result" id="result"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const statusEl = document.getElementById('status');
+        const logsEl = document.getElementById('logs');
+        const resultEl = document.getElementById('result');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const taskInput = document.getElementById('taskInput');
+
+        socket.on('log', (data) => {
+            addLog(data.message, 'info');
+        });
+
+        socket.on('complete', (data) => {
+            statusEl.textContent = '任务完成';
+            statusEl.className = 'status idle';
+            resultEl.textContent = '结果：' + data.result;
+            resultEl.style.display = 'block';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            taskInput.disabled = false;
+        });
+
+        socket.on('error', (data) => {
+            addLog(data.error, 'error');
+            statusEl.textContent = '发生错误';
+            statusEl.className = 'status idle';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            taskInput.disabled = false;
+        });
+
+        function addLog(message, type = '') {
+            const div = document.createElement('div');
+            div.className = 'log-entry ' + type;
+            div.textContent = message;
+            logsEl.appendChild(div);
+            logsEl.scrollTop = logsEl.scrollHeight;
+        }
+
+        async function startTask() {
+            const task = taskInput.value.trim();
+            if (!task) {
+                alert('请输入任务描述');
+                return;
+            }
+
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            taskInput.disabled = false;
+            statusEl.textContent = '任务执行中...';
+            statusEl.className = 'status running';
+            logsEl.innerHTML = '';
+            resultEl.style.display = 'none';
+
+            const response = await fetch('/api/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                alert(data.error || '启动失败');
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        async function stopTask() {
+            await fetch('/api/stop', { method: 'POST' });
+            statusEl.textContent = '任务已停止';
+            statusEl.className = 'status idle';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            taskInput.disabled = false;
+        }
+    </script>
+</body>
+</html>
