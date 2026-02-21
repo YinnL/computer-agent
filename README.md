@@ -42,7 +42,7 @@ api:
 #### 命令行方式
 
 ```bash
-python main.py -t "打开微信"
+python main.py -t "新建备忘录"
 ```
 
 #### Web 界面
