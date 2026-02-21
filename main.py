@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-电脑操作 Agent
+电脑操作 Agent - 针对 Qwen3.5 优化
 使用 mss 截图、pyautogui 操作、OpenAI SDK 进行 AI 决策
+支持阿里云 DashScope API
 """
 
 import os
@@ -88,7 +89,6 @@ class ScreenCapture:
         self.logger = logger or logging.getLogger(__name__)
         
     def capture(self, monitor: int = 1) -> Tuple[bytes, Tuple[int, int]]:
-        """截取屏幕"""
         monitor_info = self.sct.monitors[min(monitor, len(self.sct.monitors) - 1)]
         screenshot = self.sct.grab(monitor_info)
         img = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
@@ -107,7 +107,6 @@ class ScreenCapture:
         return jpeg_data, actual_resolution
     
     def get_screen_size(self) -> Tuple[int, int]:
-        """获取屏幕分辨率"""
         return self.logic_size
 
 
@@ -118,7 +117,6 @@ class CoordinateMapper:
         self.virtual_resolution = virtual_resolution
         
     def map_coordinates(self, ai_x: float, ai_y: float, actual_width: int, actual_height: int) -> Tuple[int, int]:
-        """将 AI 坐标映射到实际屏幕坐标"""
         ai_x = max(0, min(ai_x, self.virtual_resolution))
         ai_y = max(0, min(ai_y, self.virtual_resolution))
         scale_x = actual_width / self.virtual_resolution
@@ -139,7 +137,6 @@ class ActionExecutor:
         pyautogui.PAUSE = config.click_interval
         
     def execute_action(self, action: Dict[str, Any], screen_size: Tuple[int, int]) -> str:
-        """执行单个操作"""
         action_type = action.get('action_type', '').lower()
         try:
             if action_type == 'move_mouse':
@@ -261,30 +258,76 @@ class ActionExecutor:
 
 
 class ComputerAgent:
-    """电脑操作 Agent 主类"""
+    """电脑操作 Agent 主类 - 针对 Qwen3.5 优化"""
     
+    # 系统提示词 - 针对 Qwen3.5 优化（使用简洁的 markdown 格式）
     SYSTEM_PROMPT = """你是一个电脑操作助手，通过视觉分析屏幕并执行操作任务。
 
-## 坐标系统
+# 坐标系统（重要！）
 - 使用 0-1000 的归一化坐标系
-- (0, 0) = 屏幕左上角，(1000, 1000) = 屏幕右下角
+- (0, 0) = 屏幕左上角
+- (1000, 1000) = 屏幕右下角  
+- (500, 500) = 屏幕正中心
+- x 轴：从左到右 0→1000
+- y 轴：从上到下 0→1000
 
-## 可用操作类型
-1. move_mouse - 移动鼠标
-2. click - 点击
-3. double_click - 双击
-4. type - 输入文本
-5. press_key - 按下单键
-6. hotkey - 组合键
-7. scroll - 滚动
-8. wait - 等待
+# 视觉定位方法
 
-## 返回格式（必须是纯 JSON）
-{
-    "thought": "分析屏幕内容",
-    "actions": [{"action_type": "类型", "参数": "值"}],
-    "is_complete": false
-}"""
+## 1. 使用相对位置估算
+- 屏幕左侧边缘：x ≈ 50-100
+- 屏幕水平 1/4 位置：x ≈ 250
+- 屏幕中心：x ≈ 500
+- 屏幕水平 3/4 位置：x ≈ 750
+- 屏幕右侧边缘：x ≈ 900-950
+
+- 屏幕顶部边缘：y ≈ 50-100
+- 屏幕垂直 1/4 位置：y ≈ 250
+- 屏幕中心：y ≈ 500
+- 屏幕垂直 3/4 位置：y ≈ 750
+- 屏幕底部边缘：y ≈ 900-950
+
+## 2. 常见 UI 元素坐标
+- macOS 顶部菜单栏：y ≈ 30-40
+- macOS Dock 栏（底部）：y ≈ 920-980
+- 窗口标题栏：y 坐标通常在窗口顶部
+- 窗口内容区域：在标题栏下方
+- 按钮：通常在窗口底部或右下角
+
+## 3. 使用 Spotlight 搜索（必须完整执行）
+
+⚠️ 重要：Spotlight 搜索必须一次性完成所有步骤！
+
+完整流程（必须在一次响应中包含所有步骤）：
+1. 按 Cmd+Space 打开 Spotlight
+2. 立即使用 type 输入应用名称
+3. 按 Enter 打开应用
+
+示例：
+{"thought": "需要打开微信应用", "actions": [{"action_type": "hotkey", "parameters": {"keys": ["cmd", "space"]}}, {"action_type": "type", "parameters": {"text": "微信"}}, {"action_type": "press_key", "parameters": {"key": "enter"}}], "is_complete": false}
+
+# 可用操作类型
+
+## 鼠标操作
+1. move_mouse - 移动鼠标 参数：{"x": 数字，"y": 数字}
+2. click - 点击 参数：{"x": 数字，"y": 数字，"button": "left"|"right"}
+3. double_click - 双击 参数：{"x": 数字，"y": 数字}
+
+## 键盘操作
+4. type - 输入文本 参数：{"text": "字符串", "clear_first": true/false}
+5. press_key - 按下单键 参数：{"key": "enter"|"tab"|"backspace"|"esc"}
+6. hotkey - 组合键 参数：{"keys": ["cmd", "c"]}
+
+## 其他
+7. scroll - 滚动 参数：{"clicks": 数字}
+8. wait - 等待 参数：{"seconds": 数字}
+
+# 返回格式（必须是纯 JSON，不要有任何其他文字）
+{"thought": "分析屏幕内容", "actions": [{"action_type": "类型", "parameters": {}}], "is_complete": false}
+
+# 重要提示
+- 只返回纯 JSON，不要有任何 markdown 代码块
+- 使用 Spotlight 时必须一次完成：Cmd+Space → 输入名称 → Enter
+- 输入文本使用 type 操作，系统会自动粘贴"""
 
     def __init__(self, config_path: str = "config.yaml"):
         self.config = Config(config_path)
