@@ -1,76 +1,76 @@
-# 电脑操作 Agent
+# Computer Agent
 
-一个基于 AI 视觉的电脑操作助手，能够分析屏幕内容并自主执行操作任务。
+An AI-powered computer-use assistant that interprets screen content and autonomously performs desktop tasks.
 
-## 功能特点
+## Features
 
-- 🖼️ **屏幕截图** - 使用 mss 高速截图
-- 🤖 **AI 视觉分析** - 使用阿里云 Qwen3.5 分析屏幕内容
-- 🖱️ **自动操作** - 使用 pyautogui 执行鼠标键盘操作
-- 🔄 **循环迭代** - 截图→思考→操作，直到完成任务
-- 📐 **坐标映射** - AI 使用 1000x1000 归一化坐标，自动映射到实际分辨率
-- 🌐 **Web 界面** - 现代化的 Web 操作界面
+- 🖼️ **High-performance screen capture** — Captures the screen efficiently with mss.
+- 🤖 **AI-powered visual analysis** — Uses Alibaba Cloud Qwen3.5 to interpret screen content.
+- 🖱️ **Automated interaction** — Uses pyautogui to control the mouse and keyboard.
+- 🔄 **Iterative execution loop** — Repeats the cycle of capture, reasoning, and action until the task is complete.
+- 📐 **Coordinate mapping** — Converts the AI's normalized 1,000 × 1,000 coordinate system to the actual display resolution.
+- 🌐 **Web interface** — Provides a modern browser-based control interface.
 
-## 快速开始
+## Quick Start
 
-### 1. 安装依赖
+### 1. Install the dependencies
 
-```bash
+~~~bash
 cd computer_agent
 pip install -r requirements.txt
-```
+~~~
 
-### 2. 获取阿里云 API 密钥
+### 2. Obtain an Alibaba Cloud API key
 
-1. 访问 [阿里云 DashScope](https://dashscope.console.aliyun.com/)
-2. 开通 Qwen3.5 服务
-3. 创建 API Key
+1. Visit the Alibaba Cloud DashScope console: https://dashscope.console.aliyun.com/
+2. Enable the Qwen3.5 service.
+3. Create an API key.
 
-### 3. 配置 API
+### 3. Configure the API
 
-编辑 `config.yaml` 文件：
+Edit the config.yaml file:
 
-```yaml
+~~~yaml
 api:
   base_url: "https://coding.dashscope.aliyuncs.com/v1"
   api_key: "your-api-key-here"
   model: "qwen3.5-plus"
-```
+~~~
 
-### 4. 运行
+### 4. Run the agent
 
-#### 命令行方式
+#### Command-line interface
 
-```bash
-python main.py -t "新建备忘录"
-```
+~~~bash
+python main.py -t "Create a new note"
+~~~
 
-#### Web 界面
+#### Web interface
 
-```bash
+~~~bash
 python web_interface.py
-```
+~~~
 
-然后在浏览器访问 http://localhost:5000
+Then open http://localhost:5000 in your browser.
 
-## 项目结构
+## Project Structure
 
-```
+~~~
 computer_agent/
-├── main.py                 # 主程序
-├── web_interface.py        # Web 界面服务器
-├── config.yaml             # 配置文件
-├── requirements.txt        # Python 依赖
+├── main.py                 # Core agent implementation
+├── web_interface.py        # Web interface server
+├── config.yaml             # Runtime configuration
+├── requirements.txt        # Python dependencies
 ├── templates/
-│   └── index.html         # Web 界面
-└── agent.log              # 运行日志
-```
+│   └── index.html         # Web interface
+└── agent.log              # Runtime log
+~~~
 
-## 注意事项
+## Important Notes
 
-1. **紧急停止** - 将鼠标快速移到屏幕角落可触发安全机制
-2. **权限问题** - macOS 需要授予屏幕录制和辅助功能权限
-3. **API 费用** - 使用阿里云 DashScope 会产生相应费用
+1. **Emergency stop** — Move the mouse rapidly to a screen corner to trigger the built-in safety mechanism.
+2. **Permissions** — On macOS, grant Screen Recording and Accessibility permissions before running the agent.
+3. **API costs** — Use of Alibaba Cloud DashScope may incur charges.
 
 ## License
 
